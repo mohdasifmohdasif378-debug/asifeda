@@ -1,1 +1,1 @@
-{"version":2,"builds":[{"src":"api/index.py","use":"@vercel/python"},{"src":"asifeda-standalone.html","use":"@vercel/static"}],"routes":[{"src":"/api/(.*)","dest":"api/index.py"},{"src":"/(.*)","dest":"asifeda-standalone.html"}]}
+{"version":2,"routes":[{"src":"/(.*)","dest":"asifeda-standalone.html"}]}
