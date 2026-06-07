@@ -1,2 +1,1 @@
-
-{"version":2,"builds":[{"src":"AsifEdA-Website.html","use":"@vercel/static"}],"routes":[{"src":"/(.*)","dest":"AsifEdA-Website.html"}]}
+{"version":2,"builds":[{"src":"AsifEdA-Groq-Free.html","use":"@vercel/static"}],"routes":[{"src":"/(.*)","dest":"AsifEdA-Groq-Free.html"}]}
