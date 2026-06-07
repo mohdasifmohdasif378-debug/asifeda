@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASIFEDA AI – Ultimate Exam Platform</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:black;color:white;font-family:Arial,sans-serif;}
+    .card{background:#111;border-radius:20px;padding:20px;margin-bottom:20px;border:1px solid #333;}
+    button{background:white;color:black;border:none;border-radius:40px;padding:10px 20px;font-weight:bold;cursor:pointer;}
+    input,select,textarea{background:#222;border:1px solid #444;border-radius:12px;padding:10px;color:white;width:100%;margin-bottom:10px;}
+    .sidebar{width:250px;background:#0a0a0a;position:fixed;height:100%;padding:20px;border-right:1px solid #333;}
+    .main{margin-left:260px;padding:20px;}
+    .nav-item{padding:12px;margin:5px 0;cursor:pointer;border-radius:12px;}
+    .nav-item:hover{background:#1a1a1a;}
+    .message{padding:10px;margin:10px 0;border-radius:20px;}
+    .user{background:#1a1a1a;text-align:right;}
+    .ai{background:#0a0a0a;border:1px solid #333;}
+    @media(max-width:700px){.sidebar{display:none;}.main{margin-left:0;}}
+  </style>
+</head>
+<body>
+<div id="login" style="position:fixed;top:0;left:0;width:100%;height:100%;background:black;display:flex;align-items:center;justify-content:center;z-index:1000;">
+  <div style="background:#111;padding:40px;border-radius:30px;width:350px;">
+    <h2>⚡ ASIFEDA AI</h2>
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="password" id="password" placeholder="Password"><br>
+    <button onclick="login()">Login / Sign Up</button>
+    <p style="font-size:12px;color:#666;margin-top:20px;">First time? Account auto-created.</p>
+  </div>
+</div>
+<div id="app" style="display:none">
+  <div class="sidebar">
+    <h2 style="margin-bottom:30px;">⚡ ASIFEDA</h2>
+    <div class="nav-item" onclick="showTab('dashboard')">📊 Dashboard</div>
+    <div class="nav-item" onclick="showTab('tutor')">🤖 AI Tutor</div>
+    <div class="nav-item" onclick="showTab('quiz')">✅ MCQ Quiz</div>
+    <div class="nav-item" onclick="showTab('notes')">📝 Notes</div>
+    <div class="nav-item" onclick="showTab('pyq')">📚 PYQ Bank</div>
+    <div class="nav-item" onclick="showTab('library')">📁 Library (100MB)</div>
+    <div class="nav-item" onclick="showTab('predict')">🔮 Future Predictor</div>
+    <div style="margin-top:50px;font-size:12px;color:#444;">Built by Muhammad Asif</div>
+  </div>
+  <div class="main">
+    <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
+      <h1>ASIFEDA Ultimate OS</h1>
+      <button onclick="logout()" style="background:#222;color:white;">Logout</button>
+    </div>
+    <div id="dashboard" class="tab">
+      <div class="card">⚡ Storage: <span id="storage">0</span> MB / 100 MB</div>
+      <div class="card">📚 PYQs: <span id="pyqCount">0</span></div>
+      <div class="card">🤖 AI Tutor – Ask any exam question. I can read your uploaded PDFs.</div>
+    </div>
+    <div id="tutor" class="tab" style="display:none">
+      <div class="card">
+        <div id="chat" style="height:400px;overflow-y:auto;margin-bottom:10px;"></div>
+        <textarea id="question" rows="2" placeholder="Ask your question..."></textarea>
+        <button onclick="askAI()">Send</button>
+      </div>
+    </div>
+    <div id="quiz" class="tab" style="display:none"><div class="card"><input id="quizTopic" placeholder="Topic"><button onclick="generateQuiz()">Generate Quiz</button><div id="quizArea"></div></div></div>
+    <div id="notes" class="tab" style="display:none"><div class="card"><input id="noteTopic" placeholder="Topic"><button onclick="generateNotes()">Generate Notes</button><div id="notesOut"></div></div></div>
+    <div id="pyq" class="tab" style="display:none"><div class="card"><input id="pyqTopic" placeholder="Search topic"><button onclick="searchPYQ()">Search</button><button onclick="generatePYQs()">AI Generate 100 PYQs</button><div id="pyqList"></div></div></div>
+    <div id="library" class="tab" style="display:none"><div class="card"><input type="file" id="fileInput" multiple><button onclick="uploadFiles()">Upload</button><div id="fileList"></div></div></div>
+    <div id="predict" class="tab" style="display:none"><div class="card"><input id="predTopic" placeholder="Topic"><button onclick="predictFuture()">Predict Future Questions</button><div id="predOut"></div></div></div>
+  </div>
+</div>
+<script>
+let currentUser = null;
+function openDB() { return new Promise((resolve, reject) => { let r = indexedDB.open(`asifeda_${currentUser.email}`,1); r.onupgradeneeded=e=>{let db=e.target.result; if(!db.objectStoreNames.contains('files')) db.createObjectStore('files',{keyPath:'name'}); if(!db.objectStoreNames.contains('pyqs')) db.createObjectStore('pyqs',{keyPath:'id',autoIncrement:true}); if(!db.objectStoreNames.contains('notes')) db.createObjectStore('notes',{keyPath:'id',autoIncrement:true}); }; r.onsuccess=e=>resolve(e.target.result); r.onerror=e=>reject(e); }); }
+async function getStorageUsed() { let db=await openDB(); let tx=db.transaction('files','readonly'); let store=tx.objectStore('files'); let total=0; return new Promise(res=>{ store.openCursor().onsuccess=e=>{ let c=e.target.result; if(c){ total+=c.value.size||0; c.continue(); } else res(total); }; }); }
+async function updateStorageUI() { let used=await getStorageUsed(); document.getElementById('storage').innerText=(used/1024/1024).toFixed(1); }
+async function saveFile(file) { let used=await getStorageUsed(); if(used+file.size>100*1024*1024) throw new Error('Quota exceeded'); let db=await openDB(); let tx=db.transaction('files','readwrite'); let store=tx.objectStore('files'); let reader=new FileReader(); return new Promise((resolve,reject)=>{ reader.onload=async()=>{ await store.put({name:file.name,data:reader.result,size:file.size,type:file.type}); await updateStorageUI(); resolve(); }; reader.onerror=reject; reader.readAsArrayBuffer(file); }); }
+async function listFiles() { let db=await openDB(); let tx=db.transaction('files','readonly'); let files=[]; return new Promise(res=>{ tx.objectStore('files').openCursor().onsuccess=e=>{ let c=e.target.result; if(c){ files.push(c.value); c.continue(); } else res(files); }; }); }
+async function callGroq(prompt) { let key=localStorage.getItem('groq_key'); if(!key){ key=prompt('Enter your free Groq API key from console.groq.com:'); if(key) localStorage.setItem('groq_key',key); else throw new Error('No key'); } let res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],max_tokens:1500})}); let data=await res.json(); if(data.error) throw new Error(data.error.message); return data.choices[0].message.content; }
+function login(){ let email=document.getElementById('email').value; let pass=document.getElementById('password').value; if(!email||!pass) return; let users=JSON.parse(localStorage.getItem('asifeda_users')||'{}'); if(!users[email]) users[email]={password:pass}; else if(users[email].password!==pass){ alert('Wrong password'); return; } localStorage.setItem('asifeda_users',JSON.stringify(users)); currentUser={email}; localStorage.setItem('asifeda_current',JSON.stringify(currentUser)); document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; showTab('dashboard'); updateStorageUI(); loadPYQs(); }
+function logout(){ localStorage.removeItem('asifeda_current'); location.reload(); }
+if(localStorage.getItem('asifeda_current')){ currentUser=JSON.parse(localStorage.getItem('asifeda_current')); document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; showTab('dashboard'); updateStorageUI(); loadPYQs(); }
+function showTab(t){ document.querySelectorAll('.tab').forEach(e=>e.style.display='none'); document.getElementById(t).style.display='block'; if(t==='pyq') searchPYQ(); if(t==='library') renderFiles(); }
+async function askAI(){ let q=document.getElementById('question').value; if(!q) return; let chat=document.getElementById('chat'); chat.innerHTML+=`<div class="message user">${q}</div>`; document.getElementById('question').value=''; try{ let ans=await callGroq(`Answer as exam tutor: ${q}`); chat.innerHTML+=`<div class="message ai">${ans.replace(/\n/g,'<br>')}</div>`; }catch(e){ chat.innerHTML+=`<div class="message ai">Error: ${e.message}</div>`; } }
+async function generateQuiz(){ let topic=document.getElementById('quizTopic').value||'General'; let res=await callGroq(`Generate 5 MCQs on "${topic}" for UPSC. Return JSON array: [{"q":"...","opts":["a","b","c","d"],"ans":0,"exp":"..."}]`); let clean=res.replace(/```json|```/g,''); let qs=JSON.parse(clean); let html=''; qs.forEach((q,i)=>{ html+=`<div><b>${i+1}. ${q.q}</b><br>`; q.opts.forEach((o,j)=>{ html+=`<button onclick="checkAns(${i},${j},${q.ans},this)">${String.fromCharCode(65+j)}. ${o}</button><br>`; }); html+=`<div id="exp${i}"></div></div><br>`; }); document.getElementById('quizArea').innerHTML=html; window.curQuiz=qs; }
+function checkAns(qIdx,sel,cor,btn){ let expDiv=document.getElementById(`exp${qIdx}`); if(sel===cor){ expDiv.innerHTML='✅ Correct! '+window.curQuiz[qIdx].exp; btn.style.borderColor='green'; }else{ expDiv.innerHTML='❌ Wrong. Correct: '+window.curQuiz[qIdx].opts[cor]; btn.style.borderColor='red'; } }
+async function generateNotes(){ let topic=document.getElementById('noteTopic').value; if(!topic) return; let notes=await callGroq(`Create detailed exam notes on "${topic}" for UPSC.`); document.getElementById('notesOut').innerHTML=`<div class="card">${notes.replace(/\n/g,'<br>')}</div>`; }
+async function searchPYQ(){ let t=document.getElementById('pyqTopic').value; let db=await openDB(); let tx=db.transaction('pyqs','readonly'); let all=await new Promise(res=>{ let items=[]; tx.objectStore('pyqs').openCursor().onsuccess=e=>{ let c=e.target.result; if(c){ items.push(c.value); c.continue(); } else res(items); }; }); let filtered=all.filter(p=>p.q.toLowerCase().includes(t.toLowerCase())); document.getElementById('pyqList').innerHTML=filtered.map(p=>`<div class="card"><b>${p.q}</b><br>${p.opts.join(' | ')}<br><span style="color:green">Answer: ${p.opts[p.ans]}</span><br>${p.exp}</div>`).join(''); document.getElementById('pyqCount').innerText=filtered.length; }
+async function generatePYQs(){ let topic=document.getElementById('pyqTopic').value; if(!topic) return; document.getElementById('pyqList').innerHTML='Generating 100 PYQs...'; let all=[]; for(let i=0;i<5;i++){ let res=await callGroq(`Generate 20 previous year questions on "${topic}" for UPSC. Return JSON array: [{"q":"...","opts":["a","b","c","d"],"ans":0,"exp":"..."}]`); let clean=res.replace(/```json|```/g,''); let batch=JSON.parse(clean); all.push(...batch); } let db=await openDB(); let tx=db.transaction('pyqs','readwrite'); for(let p of all) tx.objectStore('pyqs').add(p); await loadPYQs(); alert(`Added ${all.length} PYQs`); searchPYQ(); }
+async function loadPYQs(){ let db=await openDB(); let tx=db.transaction('pyqs','readonly'); let all=await new Promise(res=>{ let items=[]; tx.objectStore('pyqs').openCursor().onsuccess=e=>{ let c=e.target.result; if(c){ items.push(c.value); c.continue(); } else res(items); }; }); document.getElementById('pyqCount').innerText=all.length; }
+async function uploadFiles(){ let files=document.getElementById('fileInput').files; for(let f of files){ try{ await saveFile(f); }catch(e){ alert(e.message); } } await renderFiles(); }
+async function renderFiles(){ let files=await listFiles(); document.getElementById('fileList').innerHTML=files.map(f=>`<div>📄 ${f.name} (${(f.size/1024).toFixed(0)}KB) <button onclick="deleteFile('${f.name}')">🗑️</button></div>`).join(''); }
+async function deleteFile(name){ let db=await openDB(); let tx=db.transaction('files','readwrite'); tx.objectStore('files').delete(name); await updateStorageUI(); await renderFiles(); }
+async function predictFuture(){ let topic=document.getElementById('predTopic').value; if(!topic) return; let res=await callGroq(`Predict 10 most likely exam questions on "${topic}" for UPSC 2025. Return JSON array of strings.`); let clean=res.replace(/```json|```/g,''); let preds=JSON.parse(clean); document.getElementById('predOut').innerHTML=`<div class="card"><ul>${preds.map(p=>`<li>${p}</li>`).join('')}</ul></div>`; }
+</script>
+</body>
+</html>
